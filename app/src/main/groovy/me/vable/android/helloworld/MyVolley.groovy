@@ -273,7 +273,8 @@ class MyVolley{
 
         JSONObject params = reqJson.params?(new JSONObject(reqJson.params)):(new JSONObject())
 
-        JsonObjectRequest myReq = new JsonObjectRequest(Request.Method.GET,
+        JsonObjectRequest myReq = new JsonObjectRequest(
+                reqJson.method,
                 reqJson.url,
                 (JSONObject)params,
                 new Response.Listener<JSONObject>() {
