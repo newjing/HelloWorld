@@ -19,7 +19,7 @@ public class Fragment_webImg extends Fragment {
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         Log.d("Fragment", "onActivityCreated");
-        WeatherApp.getInstance().showToast("Fragement view Created, image loading......")
+        WeatherApp.getInstance().show("Fragement view Created, image loading......")
         getActivity().findViewById(R.id.textView).append("---when pic loaded, you can try Back button to revert")
 
         MyVolley.loadImg(R.id.theWebImg,"http://img.my.csdn.net/uploads/201404/13/1397393290_5765.jpeg",getActivity())

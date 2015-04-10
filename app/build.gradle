@@ -84,8 +84,9 @@ dependencies {
     }
     //Jing: I want SwissKnife to update automatically
     compile 'com.arasthel:swissknife:+'
-    //Jing: Use Volley for client-server communication
-    compile 'com.mcxiaoke.volley:library:1.0.+'
+    //Jing: Use VolleyPlus instead of Volley for client-server communication
+    //compile 'com.mcxiaoke.volley:library:1.0.+'
+    compile 'dev.dworks.libs:volleyplus:+'
 }
 //Jing---here's to change the default Groovy compilation option from 1.6 to 1.7 java版本
 project.androidGroovy {

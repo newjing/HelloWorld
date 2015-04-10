@@ -1,15 +1,23 @@
 package me.vable.android.helloworld
 
 import android.app.Activity
-import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.text.TextUtils
 import android.util.Log
 import com.android.volley.*
-import com.android.volley.toolbox.*
+import com.android.volley.cache.BitmapImageCache
+import com.android.volley.cache.SimpleImageLoader
+import com.android.volley.error.*
+import com.android.volley.request.JsonObjectRequest
+import com.android.volley.request.SimpleMultiPartRequest
+import com.android.volley.toolbox.HttpClientStack
+import com.android.volley.toolbox.HttpHeaderParser
+import com.android.volley.toolbox.Volley
+import com.android.volley.toolbox.VolleyTickle
+import com.android.volley.ui.NetworkImageView
 import groovy.json.JsonSlurper
-import me.vable.android.helloworld.models.BitmapLruCache
+import me.vable.android.helloworld.R
 import me.vable.android.helloworld.models.PersistentCookieStore
 import org.apache.http.cookie.Cookie
 import org.apache.http.impl.client.CloseableHttpClient
@@ -19,12 +27,13 @@ import org.json.JSONException
 import org.json.JSONObject
 
 import java.util.concurrent.ConcurrentHashMap
-
 /**
- * A class with clean APIs to write RESTful HTTP requests,
+ * A class with clean APIs to write RESTful HTTP requests, BASED on VolleyPlus
  * A customized "static" class "with NO instance" to handle the singleton [queue] & the singleton [imageLoader] in the whole Application
  * ---Author: Jing
  * Referecne:
+ *    VolleyPlus:
+ *      https://github.com/DWorkS/VolleyPlus     ------take a close look at all the samples inside
  *    Variable init:
  *      https://github.com/ogrebgr/android_volley_examples/blob/master/src/com/github/volley_examples/app/MyVolley.java
  *    JsonRequest:
@@ -32,8 +41,23 @@ import java.util.concurrent.ConcurrentHashMap
  *    Header / Cookie / error:
  *      http://arnab.ch/blog/2013/08/asynchronous-http-requests-in-android-using-volley/
  *
+ * [Key APIs]
+ * 1. make an asynchronous call
+ *    MyVolley.asyncCall(appInstance, yourReqJson)      //specify everything in a  new ReqJson()
  *
- * [API samples]
+ * 2. make a synchronous call
+ *    MyVolley.syncCall(appInstance, yourReqJson)      //specify everything in a  new ReqJson()
+ *
+ *
+ * 3. how to load an image
+         String imageUrl = "http://"+host+":8080/web/image.jsp";
+
+         // last param can be "this" in an activity, "getActivity" in fragment
+         MyVolley.loadImg(R.id.theNetworkImageView,imageUrl,activity)       //with cache used
+         MyVolley.loadImg(R.id.theNetworkImageView,imageUrl,activity,true)  //ignore cache, forced reload
+         MyVolley.loadImg(R.id.theNetworkImageView,imageUrl,activity,TrueorFalse, defaultImg,failImg )  //specify defaultImg & failImg
+
+ * [other API samples]
  *  1. Add a standard request to the Volley queue to interact with server
  *      MyVolley.addToRequestQueue(Request<T> req)              //any type of request works
  *
@@ -60,19 +84,13 @@ import java.util.concurrent.ConcurrentHashMap
  *  7. get a cookie by name
  *      MyVolley.getCookieByName(name)  //prefix is handled internally
  *
- *  4. get ImageLoader
+ *  8. get ImageLoader          (normally no need to use it directly)
  *      MyVolley.getImageLoader()                               //get the LurCache/requestQueue based imageLoader which use  1/8th of the available memory for this memory cache
  *
- *         //how to use imageLoader
-           public void getImage() {
-                 String imageUrl = "http://"+host+":8080/web/image.jsp";
-                 NetworkImageView view = (NetworkImageView) findViewById(R.id.network_image_view);
-                 view.setDefaultImageResId(android.R.drawable.ic_menu_rotate);
-                 view.setErrorImageResId(android.R.drawable.ic_delete);
-                 view.setImageUrl(imageUrl, MyVolley.getImageLoader());
-           }
+
+ }
  */
-class MyVolley{
+class MyVolley {
     private static final String TAG = "MyVolley";
 
     /**
@@ -84,7 +102,8 @@ class MyVolley{
     private static PoolingHttpClientConnectionManager connectionManager //PoolingHttpClientConnectionManager as singleton
     private static PersistentCookieStore myCookieStore     //PersistentCookieStore as singleton, cookies serialized in SharedPreferences
     private static RequestQueue mRequestQueue;      //singleton request queue in whole application
-    private static ImageLoader mImageLoader;        //singleton imageLoader in whole application
+    private static SimpleImageLoader mImageLoader;        //singleton imageLoader in whole application
+    private static RequestTickle mRequestTickle     //singleton synchronized way  ----a default instance of the worker pool
 
     public MyVolley() {}   //no instance, just a static Volley requestQueue incluced
 
@@ -109,12 +128,13 @@ class MyVolley{
                 .build();
         mRequestQueue = Volley.newRequestQueue(context, new HttpClientStack(httpClient));
 
-        //init mImageLoader
-        int memClass = ((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE))
-                .getMemoryClass();
-        // Use 1/8th of the available memory for this memory cache.
-        int cacheSize = 1024 * 1024 * memClass / 8;
-        mImageLoader = new ImageLoader(mRequestQueue, new BitmapLruCache(cacheSize));
+        //init RequestTickle---- a default instance of the worker pool
+        mRequestTickle = VolleyTickle.newRequestTickle(context,new HttpClientStack(httpClient));
+
+
+        //init mImageLoader of VolleyPlus
+        // Use 1/4th of the available memory for cache(defined in BitmapImageCache )
+        mImageLoader = new SimpleImageLoader(mRequestQueue, BitmapImageCache.getInstance(null));
     }
 
     /**
@@ -212,7 +232,7 @@ class MyVolley{
      */
     private static String volleyErrorHelper(VolleyError error,Context applicatoinContext){
         Log.i("MyVolley","volleyErrorHelper......")
-        Log.i("MyVolley",error.toString())
+        Log.i("MyVolley--volleyErrorHelper",error.toString())
 
         def r = applicatoinContext.getResources()
         if (error instanceof TimeoutError) {
@@ -280,24 +300,19 @@ class MyVolley{
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
-                        Log.d("MyVolley",response.toString())
+                        Log.d("MyVolley--async-onResponse",response.toString())
                         try {
-                            reqJson.successFunc(response);                      //call defined success function
+                            reqJson.successFunc(response.data);                      //call defined success function
                         } catch (JSONException e) {
                             appInstance.show("Server Data Parse error");    //Toast to screen
-                            Log.e("MyVolley",e.toString())
+                            Log.e("MyVolley--async",e.toString())
                         }
                     }
                 },
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e("MyVolley",error.toString())
-                        if(error.networkResponse) {
-                            byte[] htmlBodyBytes = error.networkResponse.data;  //error in details
-                            Log.e("MyVolley", new String(htmlBodyBytes), error);
-                        }
-
+                        Log.d("MyVolley--ErrorListener",error.toString())
                         if(reqJson.responseErrorFunc != null){
                             reqJson.responseErrorFunc(error)                    //call defined error function
                         }else{
@@ -311,26 +326,162 @@ class MyVolley{
             public Map<String, String> getHeaders() throws AuthFailureError {
                 return reqJson.extraHeaders;
             }
+            @Override
+            protected Response<JSONObject> parseNetworkResponse(NetworkResponse response) {
+                try {
+                    String jsonString = new String(response.data, "UTF-8");
+                    return Response.success(new JSONObject(jsonString),  HttpHeaderParser.parseCacheHeaders(response));
+                } catch (UnsupportedEncodingException e) {
+                    return Response.error(new ParseError(e));
+                } catch (JSONException je) {
+                    return Response.error(new ParseError(je));
+                }
+            }
+
         };
+        if(reqJson.useRetry){
+            if(reqJson.retryPolicy instanceof RetryPolicy){
+                myReq.setRetryPolicy(reqJson.retryPolicy);   //by default 20sec timeout, retry 1 time
+            }else{
+                Log.e(TAG,"Error!!! retryPolicy is not set correctly as RetryPolicy")
+            }
+        };
+        myReq.setShouldCache(reqJson.useCache)    //by default true,  use cache or fetch every time
+        myReq.setPriority(reqJson.priority)        //set priority
+        addToRequestQueue(myReq,reqJson.tag);
+    }
 
+    /**
+     *  [sync request]  handle a json request (get/post) in a synchronous way
+     *          ---- based on VolleyPlus RequestTickle
+     *  @param appInstance       in activity, just  YouApplication.getInstance()
+     *  @param reqJson           new a ReqJson according to API
+     *
+     */
+    public static void syncCall(Application appInstance ,ReqJson reqJson){
+        Log.d("MyVolley","blocking syncCall......")
 
+        JSONObject params = reqJson.params?(new JSONObject(reqJson.params)):(new JSONObject())
+        JsonObjectRequest myReq = new JsonObjectRequest(
+             reqJson.method, reqJson.url, (JSONObject)params, null, null
+        ){
+            //add extraHeaders
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return reqJson.extraHeaders;
+            }
+        };
         if(reqJson.useRetry){
             myReq.setRetryPolicy(reqJson.retryPolicy);   //20sec timeout, retry 1 time,
         };
+        myReq.setShouldCache(reqJson.useCache)    //by default true,  use cache or fetch every time
+        myReq.setPriority(reqJson.priority)        //set priority
+        mRequestTickle.add(myReq);
 
-        addToRequestQueue(myReq,reqJson.tag);
-
+        //get response and handle errors/exceptions (exceptions were turned into VolleyError by VolleyPlus)
+        NetworkResponse response
+        try {
+            response = mRequestTickle.start();
+        } catch (VolleyError error) {
+            Log.d("MyVolley--ErrorListener",error.toString())
+            if(reqJson.responseErrorFunc != null){
+                reqJson.responseErrorFunc(error)                    //call defined error function
+            }else{
+                appInstance.showL(volleyErrorHelper(error,appInstance.getContext()))              //default error/timeout handling
+            }
+        }
+        //handle success callback
+        if (response.statusCode == 200) {
+            //Log.d("MyVolley-syncCall-dataResult",response.data.toString())
+            try {
+               String data = new String(response.data, "UTF-8")
+                reqJson.successFunc(new JSONObject(data))
+            } catch (JSONException e) {
+                appInstance.show("Server Data Parse error");    //Toast to screen
+                Log.e("MyVolley-syncCall--JSONException",e.toString())
+            }
+        }
     }
 
 
     /**
-     * Returns instance of ImageLoader initialized with {@see FakeImageCache} which effectively means
-     * that no memory caching is used. This is useful for images that you know that will be show
-     * only once.
-     *
-     * @return ImageLoader
+     *  [async post]  handle a multipart request (post) in an asynchronous way
+     *          ---- based on VolleyPlus RequestTickle
+     *  @param appInstance       in activity, just  YouApplication.getInstance()
+     *  @param reqJson           new a ReqJson according to API
+     *  TODO  没有测试， 等做好上传服务后测试----------异步post
      */
-    public static ImageLoader getImageLoader() {
+    public static void upload(Application appInstance ,ReqJson reqJson){
+        Log.d("MyVolley","syncMultiPartPost......")
+        SimpleMultiPartRequest  myReq = new SimpleMultiPartRequest(
+                Request.Method.POST,
+                reqJson.url,
+                new Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        Log.d("MyVolley--syncMultiPartPost-onResponse",response.toString())
+                        try {
+                            reqJson.successFunc(response.data);                      //call defined success function
+                        } catch (JSONException e) {
+                            appInstance.show("Server Data Parse error");    //Toast to screen
+                            Log.e("MyVolley--syncMultiPartPost",e.toString())
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.d("MyVolley--ErrorListener",error.toString())
+                        if(reqJson.responseErrorFunc != null){
+                            reqJson.responseErrorFunc(error)                    //call defined error function
+                        }else{
+                            appInstance.showL(volleyErrorHelper(error,appInstance.getContext()))              //default error/timeout handling
+                        }
+                    }
+                }
+        ){
+            //add extraHeaders
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                /*
+                HashMap<String, String> headers = new HashMap<String, String>();
+                headers.put("Accept", "application/json");
+                return headers + reqJson.extraHeaders;
+                */
+                return reqJson.extraHeaders
+            }
+            @Override
+            protected Response<JSONObject> parseNetworkResponse(NetworkResponse response) {
+                try {
+                    String jsonString = new String(response.data, "UTF-8");
+                    return Response.success(new JSONObject(jsonString),  HttpHeaderParser.parseCacheHeaders(response));
+                } catch (UnsupportedEncodingException e) {
+                    return Response.error(new ParseError(e));
+                } catch (JSONException je) {
+                    return Response.error(new ParseError(je));
+                }
+            }
+
+        };
+        //add multipart params and files-to-upload if any
+        reqJson.params.each{k,v ->
+            myReq.addMultipartParam(k, "text/plain",v);    //addMultipartParam(String name, String contentType, String value)
+        }
+        reqJson.filesToUpload.each{k,v ->
+            myReq.addFile(k,v);    //k  file param name known by server,   v  filepath on client
+        }
+        if(reqJson.useRetry){
+            myReq.setRetryPolicy(reqJson.retryPolicy);   //20sec timeout, retry 1 time  TODO  上传的timeout应该时间更长点？
+        };
+        myReq.setShouldCache(false)    //upload response must NOT cache
+        myReq.setPriority(reqJson.priority)        //set priority
+        addToRequestQueue(myReq,reqJson.tag);
+    }
+
+    /**
+     * @return SimpleImageLoader inited already
+     */
+    public static SimpleImageLoader getImageLoader() {
         if (mImageLoader != null) {
             return mImageLoader;
         } else {
@@ -343,11 +494,17 @@ class MyVolley{
      * @param viewResourceId
      * @param imgUrl
      * @param activity       in Activity, use "this" ;  in Fragment, use "getActivity()"
+     * @param (optional)shallReload    ignore the image in cache
+     * @param (optional)defaultImageResId   image displayed before loading
+     * @param (optional)errorImageResId     image displayed when loading fail
      */
     public static void loadImg(int viewResourceId, String imgUrl,Activity activity) {
-        loadImg(viewResourceId, imgUrl,activity,null,null)
+        loadImg(viewResourceId, imgUrl,activity,false,null,null)
     }
-    public static void loadImg(int viewResourceId, String imgUrl,Activity activity, defaultImageResId,errorImageResId) {
+    public static void loadImg(int viewResourceId, String imgUrl,Activity activity,boolean shallReload) {
+        loadImg(viewResourceId, imgUrl,activity,shallReload,null,null)
+    }
+    public static void loadImg(int viewResourceId, String imgUrl,Activity activity, boolean shallReload, defaultImageResId,  errorImageResId) {
         NetworkImageView imgView = (NetworkImageView)(activity.findViewById(viewResourceId))
         Log.i("MyVolley loadImg",imgView.toString())
 
@@ -355,6 +512,13 @@ class MyVolley{
         imgView.setDefaultImageResId(defaultImg);
         int failImg = errorImageResId?:R.drawable.failed_image
         imgView.setErrorImageResId(failImg);
-        imgView.setImageUrl(imgUrl,imageLoader);
+
+        if(shallReload){
+            imageLoader.invalidate(imgUrl)
+            imgView.setResetImageUrl(imgUrl,imageLoader)
+        }else {
+            imgView.setImageUrl(imgUrl, imageLoader);
+        }
     }
+
 }

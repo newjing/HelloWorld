@@ -27,6 +27,8 @@ import com.android.volley.Request
  * //=========optional==========
  *      rj.method = Request.Method.POST         //@ignore this if GET
  *
+ *      rj.filesToUpload.put(filename, filepath)   //only used in multipart upload
+ *
  *      rj.responseErrorFunc = this.&responseErrorFunc          //if set, & MUST be used as this is a reference of function
  *                                              //if not set, default available in MyVolley.groovy
  *
@@ -41,14 +43,18 @@ import com.android.volley.Request
  *                                              // -----extra headers for : User-Agent, Accept-Language, etc.
  *
  *      rj.cookieList                           //@ignore if you don't have specific cookie to put in REQUEST
+ *
+ *      rj useCache                             //default true,    if set false, fetch from server every time
  */
 
 class ReqJson{
-    int method = Request.Method.GET         //or Request.Method.POST
+    int method = Request.Method.GET         //or Request.Method.POST    --others:  PUT, DELETE, HEAD, OPTIONS, TRACE, PATCH
 
     String url = ""
 
     HashMap<String, String> params = [:]            //new JSONObject(params) in JsonObjectRequest by MyVolley.groovy
+
+    HashMap<String, String> filesToUpload = [:]            // filename:filePath  , 0..n, to be used in SimpleMultiPartRequest by MyVolley
 
     def successFunc = null     //function for successful callback,  [Response] will be passed to it
 
@@ -69,7 +75,7 @@ class ReqJson{
     /**
      * Retry strategy definition
      */
-    Boolean useRetry = true                 //false to give up upon timeout
+    boolean useRetry = Boolean.TRUE                 //false to give up upon timeout
     DefaultRetryPolicy  retryPolicy = new DefaultRetryPolicy(20 * 1000, 1, 1.0f)  //retry once at most after 20 secs, second timeout set as same
 
     /**
@@ -85,5 +91,16 @@ class ReqJson{
      */
     List<HttpCookie> cookieList = []
 
-    public ReqJson(){}  //construction
+    boolean useCache = Boolean.TRUE   //if set false, fetch from server every time
+
+    Request.Priority priority = Request.Priority.NORMAL     //set priority of the request
+                                                    //other options:  Request.Priority.LOW Request.Priority.HIGH  Request.Priority.IMMEDIATE
+
+    //goorvy way to validate domain class---------shit, only Grails support it
+    static constraints = {
+        method  blank: false
+        url blank:false
+        successFunc nullable:true
+        responseErrorFunc nullable:true
+    }
 }

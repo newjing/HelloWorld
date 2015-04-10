@@ -15,7 +15,7 @@
         android:id="@+id/textView"
         android:layout_gravity="top"/>
 
-    <com.android.volley.toolbox.NetworkImageView
+    <com.android.volley.ui.NetworkImageView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/theWebImg"

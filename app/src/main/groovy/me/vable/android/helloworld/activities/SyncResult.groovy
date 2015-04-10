@@ -1,109 +1,1 @@
-package me.vable.android.helloworld.activities
-
-import android.os.Bundle
-import android.support.v7.app.ActionBarActivity
-import android.util.Log
-import android.view.View
-import android.widget.TextView
-import com.android.volley.VolleyError
-import me.vable.android.helloworld.MyVolley
-import me.vable.android.helloworld.ReqJson
-import me.vable.android.helloworld.WeatherApp
-import org.json.JSONObject
-
-public class SyncResult extends ActionBarActivity {
-    def list = []
-
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        String msg = application.weatherData
-
-        // Create the text view
-        TextView textView = new TextView(this);
-        textView.setId(View.generateViewId())
-        textView.setTextSize(20);
-        textView.setText(msg);
-
-        list.add(textView)      //动态创建的widget 保存下来为了后面能获得
-
-        // Set the text view as the activity layout
-        setContentView(textView);
-
-        textView.onClickListener = {
-            Log.i("AndroidRuntime","wtf, touch me?")
-            //it.setText('1234cd')
-            //Log.i("AndroidRuntime",it.getText())
-/*
-    //[try bbbb]  directly way using JsonObjectRequest
-            JsonObjectRequest myReq = new JsonObjectRequest(Request.Method.GET,
-                    "http://wthrcdn.etouch.cn/weather_mini?citykey=101010100",
-                    null,   // [citykey:101010100] as JSONObject,
-                    createMyReqSuccessListener(it),
-                    createMyReqErrorListener(it)
-            );
-
-            //20sec timeout, retry 1 time,
-            myReq.setRetryPolicy(new DefaultRetryPolicy(20 * 1000, 1, 1.0f));
-
-            MyVolley.addToRequestQueue(myReq);
-*/
-            def rj = new ReqJson()
-            rj.url="http://wthrcdn.etouch.cn/weather_mini?citykey=101010100"
-//            rj.url="http://wthrcdn.etouch.cn/weatherXXXX_mini?citykey=101010100"  // test serverError/Auth Error in MyVolley
-//            rj.url="http://wthrcdn.etouch.cn1/weather_mini?citykey=101010100"     //test NO_NETWORK error in MyVolley
-            rj.successFunc = this.&demoSuccessFunction
-            //rj.responseErrorFunc = this.&demoErrorHandler     //test errorhandler, @optional , unless you wanna handle sth
-
-            MyVolley.asyncCall(WeatherApp.getInstance(),rj)
-        }
-    }
-
-        public void demoSuccessFunction(JSONObject response){
-            def view  = this.list[0]
-            view.setText(response.data.toString())
-        }
-
-        //通常没用，只是测试 MyVolley的API
-        public void demoErrorHandler(VolleyError error){
-            def view  = this.list[0]
-            view.setText(error.getMessage());
-        }
-/*
-        //[try bbbb]  directly way using JsonObjectRequest
-
-        protected Response.Listener<JSONObject> createMyReqSuccessListener(View v) {
-            return new Response.Listener<JSONObject>() {
-                @Override
-                public void onResponse(JSONObject response) {
-                    try {
-                        v.setText(response.data.toString());
-                        Log.i("AndroidRuntime",response.toString())
-                    } catch (JSONException e) {
-                        v.setText("Parse error");
-                    }
-                }
-            };
-        }
-        private Response.ErrorListener createMyReqErrorListener(View v) {
-            return new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    Log.i("AndroidRuntime",response.toString())
-                    v.setText(error.getMessage());
-
-                    //handle timeout
-                    if (error.networkResponse == null) {
-                        if (error.getClass().equals(TimeoutError.class)) {
-                            // Show timeout error message
-                            application.showL("Oops. Timeout error!")
-                        }
-                    }
-                }
-            };
-        }
-*/
-
-}
+package me.vable.android.helloworld.activitiesimport android.os.Bundleimport android.support.v7.app.ActionBarActivityimport android.util.Logimport android.view.Viewimport android.widget.TextViewimport com.android.volley.Requestimport com.android.volley.error.VolleyErrorimport com.android.volley.misc.Utilsimport me.vable.android.helloworld.BuildConfigimport me.vable.android.helloworld.MyVolleyimport me.vable.android.helloworld.ReqJsonimport me.vable.android.helloworld.WeatherAppimport org.json.JSONObjectpublic class SyncResult extends ActionBarActivity {    def list = []    @Override    public void onCreate(Bundle savedInstanceState) {        if (BuildConfig.IS_DEV_ENV) {            Utils.enableStrictMode();        }        super.onCreate(savedInstanceState);        String msg = application.weatherData        // Create the text view        TextView textView = new TextView(this);        textView.setId(View.generateViewId())        textView.setTextSize(20);        textView.setText(msg);        list.add(textView)      //动态创建的widget 保存下来为了后面能获得        // Set the text view as the activity layout        setContentView(textView);        textView.onClickListener = {            Log.i("AndroidRuntime","wtf, touch me?")            //it.setText('1234cd')            //Log.i("AndroidRuntime",it.getText())/*    //[try bbbb]  directly way using JsonObjectRequest            JsonObjectRequest myReq = new JsonObjectRequest(Request.Method.GET,                    "http://wthrcdn.etouch.cn/weather_mini?citykey=101010100",                    null,   // [citykey:101010100] as JSONObject,                    createMyReqSuccessListener(it),                    createMyReqErrorListener(it)            );            //20sec timeout, retry 1 time,            myReq.setRetryPolicy(new DefaultRetryPolicy(20 * 1000, 1, 1.0f));            MyVolley.addToRequestQueue(myReq);*/            def rj = new ReqJson()            rj.url="http://wthrcdn.etouch.cn/weather_mini?citykey=101010100"//            rj.url="http://wthrcdn.etouch.cn/weatherXXXX_mini?citykey=101010100"  // test serverError/Auth Error in MyVolley//            rj.url="http://wthrcdn.etouch.cn1/weather_mini?citykey=101010100"     //test NO_NETWORK error in MyVolley            rj.successFunc = this.&demoSuccessFunction            //rj.responseErrorFunc = this.&demoErrorHandler     //test errorhandler, @optional , unless you wanna handle sth            rj.priority = Request.Priority.HIGH            //用cache么？还是每次去server取            //rj.useCache = false    //ignore cache,如果不设置，就会用cache             //异步调用            //MyVolley.asyncCall(WeatherApp.getInstance(),rj)            //Log.d("AndroidRuntime---async block call","this should be displayed before result shown")            //同步调用            MyVolley.syncCall(WeatherApp.getInstance(),rj)            Log.d("AndroidRuntime---sync block call","this should be displayed after result shown")        }    }        public void demoSuccessFunction(JSONObject responseData){            def view  = this.list[0]            Log.d("AndroidRuntime","result here to be shown")            view.setText(responseData.toString())        }        //通常没用，只是测试 MyVolley的API        public void demoErrorHandler(VolleyError error){            def view  = this.list[0]            view.setText(error.getMessage());        }/*        //[try bbbb]  directly way using JsonObjectRequest        protected Response.Listener<JSONObject> createMyReqSuccessListener(View v) {            return new Response.Listener<JSONObject>() {                @Override                public void onResponse(JSONObject response) {                    try {                        v.setText(response.data.toString());                        Log.i("AndroidRuntime",response.toString())                    } catch (JSONException e) {                        v.setText("Parse error");                    }                }            };        }        private Response.ErrorListener createMyReqErrorListener(View v) {            return new Response.ErrorListener() {                @Override                public void onErrorResponse(VolleyError error) {                    Log.i("AndroidRuntime",response.toString())                    v.setText(error.getMessage());                    //handle timeout                    if (error.networkResponse == null) {                        if (error.getClass().equals(TimeoutError.class)) {                            // Show timeout error message                            application.showL("Oops. Timeout error!")                        }                    }                }            };        }*/}
