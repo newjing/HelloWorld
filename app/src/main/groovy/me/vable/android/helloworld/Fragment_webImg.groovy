@@ -1,16 +1,19 @@
 package me.vable.android.helloworld
-
 import android.app.Fragment
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-
+import android.widget.TextView
+import com.arasthel.swissknife.SwissKnife
+import com.arasthel.swissknife.annotations.InjectView
 /**
  * A fragment demo which will be put a web image on runtime
  */
 public class Fragment_webImg extends Fragment {
+    @InjectView(R.id.textView)
+    TextView tipText;
 
     public Fragment_webImg() {}// Required empty public constructor
 
@@ -18,9 +21,12 @@ public class Fragment_webImg extends Fragment {
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+        SwissKnife.inject(this, getView());
+
         Log.d("Fragment", "onActivityCreated");
         WeatherApp.getInstance().show("Fragement view Created, image loading......")
-        getActivity().findViewById(R.id.textView).append("---when pic loaded, you can try Back button to revert")
+        //getActivity().findViewById(R.id.textView).append("---when pic loaded, you can try Back button to revert")
+        tipText.append("----------InjectView------------what a fucking swissknife---when pic loaded, you can try Back button to revert")
 
         MyVolley.loadImg(R.id.theWebImg,"http://img.my.csdn.net/uploads/201404/13/1397393290_5765.jpeg",getActivity())
         /*
