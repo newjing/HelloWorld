@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:background="@color/accent_material_light">
+
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:gravity="left"
+        android:text="现在是step2, 你点返回啊, 按钮or手机按键都行"
+        android:textColor="#00AA00"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Fuck BACK"
+        android:id="@+id/backBtn"
+        android:layout_gravity="bottom"/>
+
+</RelativeLayout>

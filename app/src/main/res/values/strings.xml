@@ -19,6 +19,7 @@
 
 
     <string name="imgLoadDemo">ImageLoader demo</string>
+    <string name="title_activity_frag">FragActivity</string>
 
 
 </resources>

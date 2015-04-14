@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import com.arasthel.swissknife.SwissKnife
 import com.arasthel.swissknife.annotations.OnClick
+import me.vable.android.helloworld.Fragment_step1
 import me.vable.android.helloworld.Fragment_webImg
 import me.vable.android.helloworld.R
 import me.vable.android.helloworld.utils.EnvUtil
@@ -35,8 +36,9 @@ class MainActivity extends Activity{
 
         Log.i("MainActivity","Currently, the server host is:"+EnvUtil.getHost())
 
+        //加进去缺省的  first step Fragment
         if(savedInstanceState == null) {    //避免重复创建fragment
-            //addFragment()   //先加一个fragment,其实无所谓，放 onclick时再加也行，见下面函数
+            addStep1Fragment()   //先加第一个fragment
         }
 
         /*
@@ -47,6 +49,12 @@ class MainActivity extends Activity{
                     getFuckWeatherData()
                 }
         */
+    }
+    def addStep1Fragment(){
+        //Log.i("MainActivity addFragement step1","-----------------start running....")
+
+        Fragment_step1 frag = new Fragment_step1()
+        getFragmentManager().beginTransaction().add(R.id.demoContainer,frag,"step1").commit()     //不考虑back操作的写法
     }
 
     /*
@@ -69,9 +77,19 @@ class MainActivity extends Activity{
     }
 
     /**
+     * load a web image to the NetworkImageView
+     */
+    @OnClick(R.id.imgBtn)
+    def toLoadFragment(){
+        //先判断一下，万一fragment被back操作退出stack了，就加一个
+        if(getFragmentManager().findFragmentByTag("testImage")==null){
+            addWebImgFragment()
+        }
+    }
+    /**
      * imageLoader test--- 动态添加一个建好的image fragment
      */
-    def addFragment(){
+    def addWebImgFragment(){
         //Log.i("MainActivity addFragement","-----------------start running....")
 
         Fragment_webImg frag = new Fragment_webImg()
@@ -82,16 +100,6 @@ class MainActivity extends Activity{
         ft.addToBackStack(null)     //支持 （手机）back 按钮回退
         ft.commit()
 
-    }
-    /**
-     * load a web image to the NetworkImageView
-     */
-    @OnClick(R.id.imgBtn)
-    def toLoadFragment(){
-        //先判断一下，万一fragment被back操作退出stack了，就加一个
-        if(getFragmentManager().findFragmentByTag("testImage")==null){
-            addFragment()
-        }
     }
 
 }
